@@ -1,0 +1,568 @@
+---
+title: "How to predict Canadian voters' preferences among the major political parties from using demographic factors such as gender, education level, region, and age group"
+author: 'Group 52: Yuchen Wu, Kunjie Wei, ZhenxinQin, Hsu Han Yong'
+date: "November 22, 2023"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+  '': default
+subtitle: STA304 - Fall 2023 -Assignment 2
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+
+library(openintro)
+library(tidyverse)
+```
+
+## Introduction
+
+This study aims to understand and forecast voting trends in Canadian elections by using data from the General Social Survey (GSS) - Census Data, a broad reflection of Canada's societal attributes, and the Canadian Election Study (CES) - Survey Data from the 2021 federal election, which captures the political inclinations of over 20,000 Canadians. These sources give us valuable information about the social and political views of Canadians.
+
+Our goal is to see how different factors like gender, education level, which part of region do people live in, and their age might affect which political party they support in Canada. The study focuses on the three main parties: the Liberals, the Conservatives, and the New Democratic Party (NDP). We want to know if these demographic factors can help us predict which party might win the next election. 
+
+Central to this study is the research question: "How to predict Canadian voters' preferences among the major political parties from using demographic factors such as gender, education level, region, and age group". As Canada's society evolves, do these factors still predict voting behavior as they once did, or are new patterns emerging? Our hypothesis, informed by current data trends, posits that the Liberal Party is likely to win the next federal election.  This expectation is based on the CES data, which indicates a leading preference for the Liberal Party. Our investigation aims to determine whether this preference is consistent across various demographic segments, thereby potentially solidifying the Liberal Party's position in the upcoming election.
+
+This study, therefore, not only aims to predict the overall popular vote but also seeks to engage and inform those interested in the underlying factors shaping voter behavior in Canada.
+
+\newpage
+
+## Data
+
+The General Social Survey (GSS) data can be accessed by loading the gss_clean.csv. It serves as a comprehensive reflection of the societal attributes and trends across Canada. As a rich repository of demographic information, the GSS is similar to a census, collecting data on a wide array of topics including individual's backgrounds, characteristics, and beliefs. This data is compiled by Statistics Canada, using a stratified sampling method to ensure a representative snapshot of the Canadian populace. Participants are selected to reflect various demographic strata, such as age, gender, education level, and province.
+
+The 2021 Canadian Election Study (CES) survey data can be accessed by loading the ces2021.RData file. The CES of 2021 provides a detailed look at the political landscape of Canada through an online survey. This extensive survey, which gathered the opinions of over 20,000 Canadian citizens and permanent residents during and after the 2021 federal election campaign, aimed to represent a cross-section of the population. It was carefully designed to include a balanced mix of participants across gender, age, and regional lines, and was conducted in both English and French to capture the country's linguistic diversity. Respondents were chosen from an established panel, with specific targets for each demographic group to ensure the data reflected Canada's diverse electorate. The resulting dataset, rich with over a thousand variables, offers an invaluable resource for understanding Canadian voters' preferences and behaviors. This survey, one of the largest of its kind, used the Qualtrics platform for data collection and provides weighted variables to ensure the results are representative of the Canadian population.
+
+```{r, include = FALSE}
+# Loading the census data 
+census_data <- read_csv("gss_clean.csv")
+```
+
+```{r, include = FALSE}
+# Cleaning the census data
+df_census <- 
+  census_data %>%
+  select(sex, education, province, age) %>% 
+  filter(age >= 18) %>% 
+  rename(
+    gender = sex 
+    ) %>% 
+  mutate(edu_lvl = case_when(
+    education == "High school diploma or a high school equivalency certificate" ~ "High school or less",
+    education == "Less than high school diploma or its equivalent" ~ "High school or less",
+    education == "College, CEGEP or other non-university certificate or di..." ~ "College",
+    education == "Trade certificate or diploma" ~ "High school or less",
+    education == "University certificate or diploma below the bachelor's level" ~ "Post sec +",
+    education == "Bachelor's degree (e.g. B.A., B.Sc., LL.B.)" ~ "Post sec +",
+    education == "University certificate, diploma or degree above the bach..." ~ "Grad degree", 
+    TRUE ~ as.character(education)  # Keeps original value for any other case
+  )) %>% 
+  filter(!is.na(edu_lvl)) %>% 
+  mutate(region = case_when(
+    province %in% c('Newfoundland and Labrador', 'Prince Edward Island', 'Nova Scotia', 'New Brunswick') ~ "Atlantic Region",
+    province %in% c('Quebec', 'Ontario') ~ "Central Canada",
+    province %in% c('Manitoba', 'Saskatchewan', 'Alberta') ~ "Prairie Provinces",
+    province == 'British Columbia' ~ "West Coast",
+    TRUE ~ as.character(province))) %>% 
+  mutate(age_group = case_when(
+    age <= 29 ~ "ages18-29",
+    age <= 44 ~ "ages30-44",
+    age < 60 ~ "ages45-59",
+    age >= 60 ~ "ages60+", 
+    TRUE ~ as.character(age)  # This line handles any other cases such as NAs or unexpected values
+  ))  
+
+df_census <-
+  df_census %>% 
+  select(gender, edu_lvl, region, age_group)
+df_census
+```
+### Data Cleaning 
+
+#### For census data \hfill\break
+Our data cleaning process for the census dataset began by focusing on the essential variables: sex, education, province, and age. To ensure our analysis was relevant to eligible voters, we filtered out individuals younger than 18, as the right to vote in federal elections is only for adults who are at least 18 years old [7]. Subsequently, for consistency with the terminology used in the survey data, we adjusted the column name from 'sex' to 'gender' in the census dataset.
+
+Next, we took several specific educational levels and grouped them into larger, more general segments. This simplification involved merging various high school qualifications into a single "High school or less" group, while college diplomas were labeled simply as "College." Higher education credentials, such as bachelor's degrees and post-graduate qualifications, were designated as "Post sec +" and "Grad degree," respectively. This categorization was done to facilitate an easier understanding of educational attainment levels. In our efforts to keep the data tidy and relevant, we removed any entries lacking education information, as this could skew our analysis. 
+
+Next, We also recognized the diversity of Canada's regions, reclassifying provinces into groups that reflect their geographical and cultural affiliations: "Atlantic Region," "Central Canada," "Prairie Provinces," and the "West Coast.". Provinces such as Newfoundland and Labrador, Prince Edward Island, Nova Scotia, and New Brunswick are grouped under the "Atlantic Region," which corresponds to the eastern part of Canada known for its maritime history and culture. Quebec and Ontario, the two largest provinces by population, are classified as "Central Canada." This region is often considered the economic and political heartland of the country, encompassing Canada's two largest cities and a significant portion of its industrial base.The "Prairie Provinces" category includes Manitoba, Saskatchewan, and Alberta, which are known for their vast agricultural lands and energy resources. British Columbia is labeled as the "West Coast," acknowledging its location on the Pacific coast and its unique economic and environmental characteristics. Notably, the Northern Territories—comprising the Northwest Territories, Nunavut, and Yukon—are not explicitly mentioned and hence are excluded from this categorization. This exclusion is deliberate, as the census_data does not contain any observations from these territories. Consequently, our regional grouping encompasses only four regions, as opposed to the five typically recognized in Canadian geographical classifications [8]. 
+
+In the final part of cleaning our data, we sorted people into age groups that represent different stages in life. After doing this, we made our dataset simpler by keeping just the variables we need: gender, education level, region, and age group. The cleaned dataset is now primed for a thorough analysis, with unnecessary complexities stripped away and key information distilled into a user-friendly format.
+
+```{r, include = FALSE}
+# Loading the survey data
+load('ces2021.RData')
+```
+
+```{r, include = FALSE}
+# Cleaning the survey data
+df_survey <- 
+  survey_data %>% 
+  filter(!is.na(cps21_votechoice)) %>% #remove na observations from cps21_votechoice
+  filter(cps21_yob >= 18) %>% #only 18yrs old and above can vote
+  filter(cps21_education != 12) %>% # remove (12) "Don't know/ Prefer not to answer" from cps21_education
+  filter(cps21_province != 13) %>%
+  filter(cps21_province != 6) %>% 
+  filter(cps21_province != 8) %>% # remove "Yukon(13), Northwest Territories(6), Nunavut(8)" from cps21_province to match with census_data
+  rename(age = cps21_yob) %>% 
+  mutate(gender = case_when(
+    cps21_genderid == 1 ~ "Male",
+    cps21_genderid == 2 ~ "Female",
+    TRUE ~ as.character(cps21_genderid)
+  )) %>% 
+  filter(gender %in% c("Female", "Male")) %>% 
+  mutate(edu_lvl = case_when(
+    cps21_education %in% 1:5 ~ "High school or less",
+    cps21_education %in% 6:7 ~ "College",
+    cps21_education %in% 8:9 ~ "Post sec +",
+    cps21_education %in% 10:11 ~ "Grad degree",
+    TRUE ~ as.character(cps21_education)  # Keeps original value for any other case
+  )) %>% 
+  mutate(region = case_when(
+    cps21_province %in% c('5', '10', '7', '4') ~ "Atlantic Region",
+    cps21_province %in% c('11', '9') ~ "Central Canada",
+    cps21_province %in% c('3', '12', '1') ~ "Prairie Provinces",
+    cps21_province == '2' ~ "West Coast",
+    TRUE ~ as.character(cps21_province)  # Handles any other cases such as NAs or unexpected values
+  )) %>% 
+  mutate(age = round(age)) %>% 
+  mutate(age_group = case_when(
+    age <= 29 ~ "ages18-29",
+    age <= 44 ~ "ages30-44",
+    age <= 59 ~ "ages45-59",
+    age >= 60 ~ "ages60+", 
+    TRUE ~ as.character(age)  # This line handles any other cases such as NAs or unexpected values
+  )) %>% 
+  mutate(vote_liberal = ifelse(cps21_votechoice == 1, 1, 0)) %>% 
+  mutate(vote_conservative = ifelse(cps21_votechoice == 2, 1, 0)) %>% 
+  mutate(vote_NDP = ifelse(cps21_votechoice == 3, 1, 0))
+
+df_survey <-
+  df_survey %>% 
+  select(gender, edu_lvl, region, age_group, vote_liberal, vote_conservative, vote_NDP)
+
+df_survey
+```
+#### For survey data \hfill\break
+In our process of preparing the survey data for analysis, first, we removed any incomplete records where we didn't know how someone wanted to vote, by removing na observations from cps21_votechoice using the filter() function in r. Next, we made sure to include only those people who are old enough to vote, which is 18 years or older [7]. We also filter out any answers where people didn't give clear information about their education level or said they didn't know. Since we want our survey to match up with our census data, we excluded responses from regions that weren't covered in our census data, like Yukon, Northwest Territories, and Nunavut. 
+
+Next, we renamed a column to make it more understandable: we changed 'cps21_yob' to 'age' because it tells us how old each person is. Next, we clarified everyone's gender by changing the numbers in 'cps21_genderid' to the words "Male" or "Female.", where '1' indicate Male and '2' indicate 'Female'. We made sure to only keep these two genders in our data and left out any other types of answers. 
+
+For the education level, we use the cps21_education responses, which are numerically coded. For individuals who reported education levels from 'No schooling' (1) to 'Completed secondary/high school' (5) is placed in the "High school or less" category. This means that if someone has a high school diploma or less, we classify them in this general group. Respondents who reported 'Some technical, community college, CEGEP, College Classique' (6) or 'Completed technical, community college, CEGEP, College Classique' (7) are categorized as "College". So, those with some college education or a completed college diploma fall into this group.The "Post sec +" category is assigned to those with 'Some university' (8) or a 'Bachelor's degree' (9), indicating some level of university education but not necessarily a graduate degree. Finally, 'Master's degree' (10) and 'Professional degree or doctorate' (11) are classified under "Grad degree", which denotes postgraduate education.
+
+Similar to the census data, we reclassified the provinces into groups that reflect their geographical and cultural affiliations: "Atlantic Region," "Central Canada," "Prairie Provinces," and the "West Coast.". Provinces such as Newfoundland and Labrador(5), Prince Edward Island(10), Nova Scotia(7), and New Brunswick(4) are grouped under the "Atlantic Region," which corresponds to the eastern part of Canada. Quebec(11) and Ontario(9), the two largest provinces by population, are classified as "Central Canada." The "Prairie Provinces" category includes Manitoba(3), Saskatchewan(12), and Alberta(1). British Columbia(2) is labeled as the "West Coast," acknowledging its location on the Pacific coast. Notably, the Northern Territories—comprising the Northwest Territories, Nunavut, and Yukon—are filtered out from this dataset and hence are excluded from this categorization. This exclusion is deliberate, as the census_data does not contain any observations from these territories. Consequently, our regional grouping encompasses only four regions, as opposed to the five typically recognized in Canadian geographical classifications [8]. 
+
+For age, prior to grouping them into different periods in a person's life, such as "ages18-29", "ages30-44", "ages45-59" or "ages60+.", we take each age value and rounds it to the nearest whole number using the round() function in R. This helps us see patterns in how people of different ages might vote. Finally, we turned the answers about who someone would vote for into a simple 'yes' (1) or 'no' (0) for three political parties: the Liberals, Conservatives, and NDP. This makes it easier to count how many people support each party. 
+
+After all these changes, we were left with a neat set of information that includes gender, education level, region, age group, and who people might vote for. Our data is now tidy and ready for us to analyze and find out about voting patterns in Canada.
+
+### Variable and it's description 
+#### For census data: \hfill\break 
+*gender* \hfill\break 
+Originally recorded as 'sex' in the dataset, this variable indicates the gender of the respondent, Female or Male. \hfill\break \hfill\break
+*edu_lvl* \hfill\break
+This variable classifies the highest educational attainment of the respondent into simplified categories. 'High school or less' represents those with a high school diploma, equivalency, or less; 'College' refers to those with some college education or a completed non-university certificate; 'Post sec +' is for individuals with some university education up to a bachelor's degree; and 'Grad degree' denotes those with a master's, professional degree, or doctorate. \hfill\break \hfill\break
+*region* \hfill\break
+This variable groups Canadian provinces into broader geographical regions. 'Atlantic Region' encompasses the provinces of Newfoundland and Labrador, Prince Edward Island, Nova Scotia, and New Brunswick. 'Central Canada' includes Quebec and Ontario. The 'Prairie Provinces' comprise Manitoba, Saskatchewan, and Alberta, while 'West Coast' refers to British Columbia. \hfill\break \hfill\break
+*age_group* \hfill\break
+Respondents are categorized into age groups reflecting different stages of adulthood. 'ages18-29' captures young adults, 'ages30-44' includes those in early to mid-adulthood, 'ages45-59' covers individuals approaching retirement, and 'ages60+' includes seniors. \hfill\break 
+
+#### For survey data: \hfill\break 
+*gender* \hfill\break 
+This variable captures the gender of the survey respondent. It has been simplified to include only 'Male' or 'Female' options for consistency and ease of analysis. \hfill\break \hfill\break
+*edu_lvl* \hfill\break
+This categorizes the highest level of education the respondent has achieved. It consolidates the detailed responses into broader bands for clarity: 'High school or less' for those with a high school education or below, 'College' for those with some college or a completed diploma, 'Post sec +' for those with some university education or a bachelor's degree, and 'Grad degree' for postgraduate degrees. \hfill\break \hfill\break
+*region* \hfill\break
+The respondents' provinces are grouped into larger geographical areas that align with the traditional regions of Canada but simplified to match the available census data. This variable represents these regions as 'Atlantic Region', 'Central Canada', 'Prairie Provinces', and 'West Coast'. The Northern Territories are not included due to their absence from the census data. \hfill\break \hfill\break
+*age_group* \hfill\break
+This categorizes respondents into age brackets that reflect different life stages: 'ages18-29' for young adults, 'ages30-44' for mid-aged adults, 'ages45-59' for older adults, and 'ages60+' for seniors. \hfill\break \hfill\break
+*vote_liberal* \hfill\break
+A binary indicator variable derived from the survey question on voting choice, showing whether the respondent would vote for the Liberal party (1 for yes, 0 for no) \hfill\break \hfill\break
+*vote_conservative* \hfill\break
+A binary indicator variable derived from the survey question on voting choice, showing whether the respondent would vote for the Conservative party (1 for yes, 0 for no) \hfill\break \hfill\break
+*vote_NDP* \hfill\break
+A binary indicator variable derived from the survey question on voting choice, showing whether the respondent would vote for the NDP party (1 for yes, 0 for no) \hfill\break \hfill\break
+
+
+In our upcoming analysis, we will delve into the voting patterns of the Canadian electorate, focusing on their preferences for three major political parties: the Liberal Party, the Conservative Party, and the New Democratic Party (NDP) using the survey data. To understand what drives the electoral choices, we'll construct three separate models, each predicting the likelihood of voting for one of these parties. Our predictors, which remain constant across all models, are: gender, education level (edu_lvl), region and age group (age_group). 
+
+The variable of gender is binary, identifying respondents as either male or female. The inclusion of gender as a predictor is based on a wealth of research indicating that it can be a significant determinant of political preferences and policy priorities. This binary distinction helps us explore whether there are notable differences in party support between men and women.
+
+Education level, noted in our dataset as 'edu_lvl', is a categorical variable that reflects the highest educational qualification of each respondent. It is categorized into four groups: 'High school or less', 'College', 'Post sec +' for those with some university education or a bachelor's degree, and 'Grad degree' for advanced degrees. Education is a critical variable as it is often linked with varying political ideologies and voting patterns. By examining this, we aim to uncover any educational trends in political affiliation and see how different levels of education may influence electoral choices. 
+
+The regional aspect of our analysis takes into account the diverse Canadian geography. We have categorized regions into 'Atlantic Region', 'Central Canada', 'Prairie Provinces', and 'West Coast'. These categories allow us to analyze regional voting trends and investigate whether certain political parties have stronghold areas or if their support is evenly spread across the country.
+
+Lastly, our 'age_group' variable categorizes voters into four brackets: 'ages18-29', 'ages30-44', 'ages45-59', and 'ages60+', enabling us to discern any generational divides in party preference. By looking at these age groups, we can potentially identify generational shifts in political leanings and the influence of age on voting behavior. 
+
+\newpage
+
+## Summary tables
+
+```{r, echo=FALSE}
+library(knitr)
+library(dplyr)
+
+# Original data frame calculation
+prop_vote <- df_survey %>%
+  summarise(
+    Liberal = sum(vote_liberal) / nrow(df_survey),
+    Conservative = sum(vote_conservative) / nrow(df_survey),
+    NDP = sum(vote_NDP) / nrow(df_survey)
+  )
+
+# Transpose the data frame and convert it to a data frame
+t_prop_vote <- as.data.frame(t(prop_vote))
+
+# Since t() returns a matrix, the rownames become the column names. 
+# We need to convert them to a first column and reset the column names.
+t_prop_vote <- data.frame(Party = rownames(t_prop_vote), Proportion = unlist(t_prop_vote, use.names = FALSE))
+rownames(t_prop_vote) <- NULL
+
+# Use kable to create a transposed table with appropriate headings
+kable(t_prop_vote, caption = "Preliminary proportions of voting for each party")
+
+```
+
+The summary table displayed above represents preliminary proportions of voting intentions from the survey dataset before any poststratification has been applied. The proportions is 26.77% for the Liberal Party, 24.96% for the Conservative Party , and 19.26% for the NDP Party which are raw values calculated directly from the survey data. Notably, the Liberal Party currently holds the highest proportion of intended votes among the three parties. These figures have not been adjusted to reflect the demographic composition of the target population, which is a crucial step in generating estimates that are representative of the broader electorate. Therefore, the proportions may not accurately represent the intended vote within the entire population until they are weighted accordingly.
+
+```{r,echo=FALSE}
+
+library(dplyr)
+library(tidyr)
+
+# Function to calculate frequency and proportion for a categorical variable
+summarize_categorical <- function(df, variable_name, variable_label) {
+  df %>%
+    count(!!sym(variable_name)) %>%
+    mutate(
+      Proportion = n / sum(n) * 100,
+      Variable = variable_label
+    ) %>%
+    rename('Overall Count' = n) %>%  # Rename the 'n' column
+    rename(Category = !!sym(variable_name)) %>%
+    select(Variable, Category, 'Overall Count', Proportion) # Ensure the correct order of columns
+}
+
+# Apply the function to each categorical variable
+gender_summary <- summarize_categorical(df_survey, "gender", "Gender")
+edu_lvl_summary <- summarize_categorical(df_survey, "edu_lvl", "Education Level")
+region_summary <- summarize_categorical(df_survey, "region", "Region")
+age_group_summary <- summarize_categorical(df_survey, "age_group", "Age Group")
+
+# Combine the summaries into one data frame
+combined_summary <- bind_rows(gender_summary, edu_lvl_summary, region_summary, age_group_summary) %>% 
+  kable(caption = "Summary table for gender, education level, region and age group")
+
+combined_summary
+```
+
+The output above is a summary table that categorizes survey respondents by gender, education level, region, and age group, along with the count (n) and proportion (%) of respondents within each category/ variable. It shows that females make up approximately 54.86% and males 45.14% of the surveyed group. Regarding education, 30.53% have college education, 14.15% hold graduate degrees, 15.20% finished high school or less, and 40.10% have some post-secondary education ('Post sec +'). Regionally, the largest share of respondents comes from Central Canada (65.86%), followed by the Prairie Provinces (17.79%), the West Coast (10.78%), and the Atlantic Region (5.57%). Age-wise, the survey includes 9.48% aged 18-29, 30.73% aged 30-44, 25.06% aged 45-59, and 34.72% aged 60 or older. This table provides insights into the demographics of the survey participants, offering a snapshot of the diversity within the sample.
+
+```{r, echo=FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Convert the voting intention columns from wide format to long format
+long_df2 <- df_survey %>%
+  pivot_longer(cols = starts_with("vote_"), names_to = "party", values_to = "vote") %>%
+  mutate(party = recode(party, 
+                        vote_liberal = "Liberal",
+                        vote_conservative = "Conservative",
+                        vote_NDP = "NDP"),
+         vote = as.factor(vote)) %>%
+  filter(vote == 1) # Include only votes for a party
+
+# Calculate the counts for each combination of edu_lvl and party
+counts2 <- long_df2 %>%
+  count(edu_lvl, party)
+
+# Create a bar plot with separate bars for each party within each age group
+vote_preference_edu <- ggplot(counts2, aes(x = edu_lvl, y = n, fill = party)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.91)) +
+  labs(x = "Education Level", y = "Vote Count", fill = "Party", 
+       title = "Vote Preference by Education Level") +
+  scale_fill_manual(values = c("Liberal" = "blue", "Conservative" = "red", "NDP" = "orange")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+vote_preference_edu
+```
+The "Vote Preference by Education Level" plot showcases how the survey respondents' voting preferences for the three major Canadian political parties vary across different education levels. 
+
+Voters with college level education have a slight leading preference for the Conservative Party. Among respondents with graduate degrees, the plot shows a lower vote count for all parties compared to other education levels, with the Liberal Party leading over the Conservative and NDP. Respondents with some university education or a bachelor's degree (post sec + group) show a prominent preference for the Liberal Party, followed closely by the Conservative Party, with the NDP Party having lesser support in comparison. It's noteworthy that across all levels of education, the NDP Party tends to gather the least preference.
+
+The plot indicates that education level is a potentially influential factor in political preference, with certain parties finding more support among specific educational demographics. For instance, the trend observed could imply that the policies or communication strategies of the Conservative Party is more appealing to those with a college education or less, while the Liberal Party may be more appealing to those with higher education.
+
+```{r, echo=FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Convert the voting intention columns from wide format to long format
+long_df3 <- df_survey %>%
+  pivot_longer(cols = starts_with("vote_"), names_to = "party", values_to = "vote") %>%
+  mutate(party = recode(party, 
+                        vote_liberal = "Liberal",
+                        vote_conservative = "Conservative",
+                        vote_NDP = "NDP"),
+         vote = as.factor(vote)) %>%
+  filter(vote == 1) # Include only votes for a party
+
+# Calculate the counts for each combination of region and party
+counts3 <- long_df3 %>%
+  count(region, party)
+
+# Create a bar plot with separate bars for each party within each age group
+vote_preference_region <- ggplot(counts3, aes(x = region, y = n, fill = party)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.91)) +
+  labs(x = "Region in Canada", y = "Vote Count", fill = "Party", 
+       title = "Vote Preference by Region") +
+  scale_fill_manual(values = c("Liberal" = "blue", "Conservative" = "red", "NDP" = "orange")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+vote_preference_region
+```
+The chart above shows the distribution of voting preferences for the three major Canadian political parties vary across different region in Canada. 
+
+In the Atlantic Region, the vote count for each party is relatively low, which make sense as respondents from Atlantic Region only takes up 5.57% of the entire survey data.The liberal party shows a slight lead in this region. Central Canada which is composed by the two largest provinces by population, Quebec and Ontario has a significantly higher vote count for all parties. The Liberal Party enjoys a substantial lead in this region, followed by the Conservative Party, with the NDP trailing behind. The Prairie Provinces show the strongest support for the Conservative Party, which is notably higher than the support for the Liberal and NDP parties. This reflects a regional preference that could be influenced by local economic and cultural factors. On the West Coast, the vote counts preferences are more evenly distributed among the parties.
+
+The plot indicates that regional factors significantly impact party preference. The varying levels of support for each party across regions underscore the geographical diversity in political leanings within Canada. The Liberal Party appears to have a strong base in Central Canada, the Conservative Party is particularly favored in the Prairie Provinces, and the West Coast shows a more balanced political inclination. 
+
+\newpage
+
+## Methods
+
+###  Logistic Regression Model
+
+Logistic regression is a statistical method utilized for modeling the probability of a binary outcome, such as voting for a particular political party. Unlike linear regression, which predicts a continuous outcome, logistic regression models the probability of an event occurring through the logistic function, transforming the linear combination of input features into a range bounded between 0 and 1.
+
+In our analysis, we addressed the issue of missing data by choosing to remove observations with missing values (notated as NA). This approach was selected because it helps maintain the integrity and accuracy of our model. When data is missing, it can be either filled in (imputation) or removed (deletion). We opted for deletion to ensure our analysis only included complete and reliable data. This method is particularly important for the accuracy of our model fitting, as missing data can skew results. We assume our data is Missing At Random (MAR), meaning the propensity for a data point to be missing is not related to the missing data itself but can be fully accounted for by variables where we have complete information. This assumption justifies our use of listwise deletion, where cases with missing values are excluded from analysis.
+
+Besides that, the analysis assumes that the logistic regression model's predictors have a linear relationship with the log odds of the dependent variable. We also assume that our sample data are representative of the Canadian population and that there are no unmeasured confounders that significantly affect voting behavior.
+
+In our context, we use the model to learn the relationships between the predictor variables (age, gender, province, education level) and the likelihood of supporting the popular political parties(liberal party, conservative party, and ndp party). Age, gender, province, and education level are significant predictors that can provide valuable insights into voting behavior. These variables are chosen based on their relevance in shaping political opinions and aligning with previous research indicating their impact on voting patterns [5][6].
+
+We will be using three logistic regression models to model the proportion of voters who will vote for the liberal party, the conservative party, and the NDP party respectively. We will be using age, gender, education level, region as variables to model the probability of voting for each party. 
+
+The logistic regression models we are using are:  
+
+Model 1: 
+
+$$ log(\frac{\hat{p_{liberal}}}{1-\hat{p_{liberal}}}) = \hat{\beta_0}+\hat{\beta_1}  x_{genderMale}+\hat{\beta_2}x_{edulvl1}+\hat{\beta_3}x_{edulvl2}+\hat{\beta_4}  x_{edulvl3} $$
+$$ +\hat{\beta_5}x_{region_1}+\hat{\beta_6}x_{region_2}+\hat{\beta_7}x_{region_3}+\hat{\beta_8}x_{age30-44}+\hat{\beta_9}x_{age45-59}+\hat{\beta_{10}}x_{age60+} + \epsilon$$
+
+Where: \hfill\break $\hat{p_{liberal}}$ represents the probability of voters who will vote for the liberal party. \hfill\break
+      $\beta_1$ represents difference in log odds between female and male. \hfill\break
+      $\beta_2$ represents difference in log odds between voters completed grad degree and voters completed college. \hfill\break
+      $\beta_3$ represents difference in log odds between voters completed high school or less and voters completed college. \hfill\break
+      $\beta_4$ represents difference in log odds between voters completed post secondary school and voters completed college. \hfill\break
+      $\beta_5$ represents difference in log odds between voters from Atlantic Region and Central Canada region. \hfill\break
+      $\beta_6$ represents difference in log odds between voters from Atlantic Region and Prairie Provinces region. \hfill\break
+      $\beta_7$ represents difference in log odds between voters from Atlantic Region and West Coast region. \hfill\break
+      $\beta_8$ represents difference in log odds between voters aged 18-29 and aged 30-44. \hfill\break
+      $\beta_9$ represents difference in log odds between voters aged 18-29 and aged 45-59. \hfill\break
+      $\beta_{10}$ represents difference in log odds between voters aged 18-29 and aged 60+. \hfill\break
+      
+Model 2: 
+$$ log(\frac{\hat{p_{conservative}}}{1-\hat{p_{conservative}}}) = \hat{\beta_0}+\hat{\beta_1}  x_{genderMale}+\hat{\beta_2}x_{edulvl1}+\hat{\beta_3}x_{edulvl2}+\hat{\beta_4} x_{edulvl3} $$ 
+$$ + \hat{\beta_5}x_{region_1}+\hat{\beta_6}x_{region_2}+\hat{\beta_7}x_{region_3}+\hat{\beta_8}x_{age30-44}+\hat{\beta_9}x_{age45-59}+\hat{\beta_{10}}x_{age60+} + \epsilon$$
+
+Where: \hfill\break $\hat{p_{conservative}}$ represents the probability of voters who will vote for the conservative party. \hfill\break
+      $\beta_1$ represents difference in log odds between female and male. \hfill\break
+      $\beta_2$ represents difference in log odds between voters completed grad degree and voters completed college. \hfill\break
+      $\beta_3$ represents difference in log odds between voters completed high school or less and voters completed college. \hfill\break
+      $\beta_4$ represents difference in log odds between voters completed post secondary school and voters completed college. \hfill\break
+      $\beta_5$ represents difference in log odds between voters from Atlantic Region and Central Canada region. \hfill\break
+      $\beta_6$ represents difference in log odds between voters from Atlantic Region and Prairie Provinces region. \hfill\break
+      $\beta_7$ represents difference in log odds between voters from Atlantic Region and West Coast region. \hfill\break
+      $\beta_8$ represents difference in log odds between voters aged 18-29 and aged 30-44. \hfill\break
+      $\beta_9$ represents difference in log odds between voters aged 18-29 and aged 45-59. \hfill\break
+      $\beta_{10}$ represents difference in log odds between voters aged 18-29 and aged 60+. \hfill\break
+      
+Model 3: 
+      
+$$ log(\frac{\hat{p_{ndp}}}{1-\hat{p_{ndp}}}) = \hat{\beta_0}+\hat{\beta_1}  x_{genderMale}+\hat{\beta_2}x_{edulvl1}+\hat{\beta_3}x_{edulvl2}+\hat{\beta_4}  x_{edulvl3} $$
+$$+\hat{\beta_5}x_{region_1}+\hat{\beta_6}x_{region_2}+\hat{\beta_7}x_{region_3}+\hat{\beta_8}x_{age30-44}+\hat{\beta_9}x_{age45-59}+\hat{\beta_{10}}x_{age60+} + \epsilon$$
+
+Where: \hfill\break $\hat{p_{ndp}}$ represents the probability of voters who will vote for the NDP party. \hfill\break
+      $\beta_1$ represents difference in log odds between female and male. \hfill\break
+      $\beta_2$ represents difference in log odds between voters completed grad degree and voters completed college. \hfill\break
+      $\beta_3$ represents difference in log odds between voters completed high school or less and voters completed college. \hfill\break
+      $\beta_4$ represents difference in log odds between voters completed post secondary school and voters completed college. \hfill\break
+      $\beta_5$ represents difference in log odds between voters from Atlantic Region and Central Canada region. \hfill\break
+      $\beta_6$ represents difference in log odds between voters from Atlantic Region and Prairie Provinces region. \hfill\break
+      $\beta_7$ represents difference in log odds between voters from Atlantic Region and West Coast region. \hfill\break
+      $\beta_8$ represents difference in log odds between voters aged 18-29 and aged 30-44. \hfill\break
+      $\beta_9$ represents difference in log odds between voters aged 18-29 and aged 45-59. \hfill\break
+      $\beta_{10}$ represents difference in log odds between voters aged 18-29 and aged 60+. \hfill\break
+
+```{r, include=FALSE}
+library(broom) # Helps make the regression results tidier
+library(tidyverse) # Helps make programming with R easier
+library(brms)
+
+#"Modeling" the survey data
+model_1 <- glm(vote_liberal ~ as.factor(gender) + as.factor(edu_lvl) + 
+                      as.factor(region) + as.factor(age_group), 
+                      data = df_survey, 
+                      family = binomial)
+
+
+model_2 <- glm(vote_conservative ~ as.factor(gender) + as.factor(edu_lvl) + 
+                      as.factor(region) + as.factor(age_group), 
+                      data = df_survey, 
+                      family = binomial)
+
+model_3 <- glm(vote_NDP ~ as.factor(gender) + as.factor(edu_lvl) + 
+                      as.factor(region) + as.factor(age_group), 
+                      data = df_survey, 
+                      family = binomial)
+```
+      
+      
+## Post-Stratification 
+
+To correct for sampling biases and enhance the representativeness of our survey, we employ the Post-Stratification method, which adjusts the weights of survey responses to match the demographic distributions reported in the 2021 National Census for gender, age, education, and region. By carefully weighting the survey responses to match the demographic distribution observed in the census, the Post-Stratification method enhances the model's external validity and ensures that predictions are reflective of the true diversity within the specified population.
+
+To apply the post-stratification method, we consider different combinations of characteristics that are important for our analysis, such as gender, education level, region, and age group. These characteristics form what we call "strata," or distinct groups, within the population. In our case, we have 128 such groups, created by looking at every possible combination of the four characteristics we're interested in. 
+
+2 groups in gender: [Male, Female]
+
+4 groups in Education Level: [High school or less, College, Post Sec+, Grad degree]
+
+4 groups in Region: [Atlantic Region, Central Canada, Prairie Provinces, West Coast]
+
+4 groups in Age Groups: [Ages18-29, Ages30-44, Ages45-59, Ages60+]
+
+In total we have 2(gender) * 4(education level) * 4(region) * 4(age groups) = 128 strata:
+
+The post-stratified estimator of the population likelihood is as followed:
+
+ $$\hat{p}^{PS} = \sum{\frac{N_h}{N}*p_h}$$
+where $h$ denotes a stratum within the 128 combination strata of age, gender, province, and education level; $\hat{p}^{PS}$ is the post-stratified estimator of the population likelihood of voting for certain party; $N_h$ denotes the population total of stratum $h$; $p_h$ denotes the sample likelihood of voting for certain party within stratum $h$.
+
+For example, one stratum might be 'Female, College-educated, living in Central Canada, aged between 30-44'. By comparing how many people there are in each stratum in the real world (according to the census) with how many survey responses we got from each stratum, we can adjust our survey data. This means that if a certain group is underrepresented in the survey, their responses get more weight, and if they are overrepresented, their responses get less weight.
+
+By applying the post-stratification method, we carefully adjust the survey weights to ensure that our survey results accurately mirror the distribution of key demographic variables in the entire population. Thus, the model can produce more accurate and reliable findings that reflect the broader characteristics of the population.
+
+```{r, include=FALSE}
+### Loading in the census data
+# To change the way numbers are displayed so that they use decimal points instead of scientific notation
+options(scipen = 999)
+
+# Calculate the total count first
+total_n_strata <- nrow(df_census)
+
+# Now create df_census2 with correct proportions
+df_census2 <- df_census %>% 
+  group_by(gender, edu_lvl, age_group, region) %>%
+  summarize(n_strata = n(), 
+            prop = n_strata / total_n_strata)
+
+# Apply the first model to the poststratification data and calculate the weighted predictions
+df_census2$liberal_estimate <- predict(model_1, newdata = df_census2, type = "response")
+df_census2$liberal_predict_prop <- df_census2$liberal_estimate * df_census2$prop
+
+# Apply the second model to the poststratification data and calculate the weighted predictions
+df_census2$conservative_estimate <- predict(model_2, newdata = df_census2, type = "response")
+df_census2$conservative_predict_prop <- df_census2$conservative_estimate * df_census2$prop
+
+# Apply the third model to the poststratification data and calculate the weighted predictions
+df_census2$NDP_estimate <- predict(model_3, newdata = df_census2, type = "response")
+df_census2$NDP_predict_prop <- df_census2$NDP_estimate * df_census2$prop
+```
+All analysis for this report was programmed using `R version 4.0.2`. 
+
+\newpage
+
+## Results 
+The analysis yielded the following estimated likelihoods of voting for the major political parties in Canada, based on the census data.
+
+The table below presents the predicted probabilities of Canadian voters favoring the Liberal, Conservative, and New Democratic Party (NDP) in the upcoming federal election. The probabilities are computed based on the regression model and post-stratification methods previously described.
+```{r, echo= FALSE}
+## Summarise the weighted predictions within each region to get the final estimates
+post_stratified_estimates <- df_census2 %>%
+  summarise(liberal_prediction = sum(liberal_predict_prop),
+            conservative_prediction = sum(conservative_predict_prop),
+            NDP_prediction = sum(NDP_predict_prop))
+
+# Calculate the total sums for each prediction column without grouping
+total_liberal_prediction <- sum(df_census2$liberal_predict_prop, na.rm = TRUE)
+total_conservative_prediction <- sum(df_census2$conservative_predict_prop, na.rm = TRUE)
+total_NDP_prediction <- sum(df_census2$NDP_predict_prop, na.rm = TRUE)
+
+# Create a new row with these totals
+total_row <- data.frame(
+  region = "Overall Prediction", 
+  liberal_prediction = total_liberal_prediction,
+  conservative_prediction = total_conservative_prediction,
+  NDP_prediction = total_NDP_prediction
+)
+
+kable(total_row, caption = "Estimated likelihood of voting in census data")
+```
+The results indicate a closely contested race between the Liberal and Conservative parties, with estimated probabilities of 25.34% and 25.57% respectively. The NDP trails behind with a 20.65% likelihood of being the preferred choice among voters. These outcomes suggest a competitive political environment, reflecting the nuanced preferences across the Canadian electorate. The close margins between the Liberal and Conservative predictions underscore the importance of demographic factors in shaping voter preferences.
+
+
+Considering the current political climate and historical voting trends in Canada, these results appear reasonable. They depict a balanced electoral contest, resonating with the dynamic and often unpredictable nature of Canadian politics. The slight edge for the Conservative Party aligns with certain demographic shifts and regional sentiments, as explored in the earlier sections of this report.
+
+The table efficiently encapsulates the essence of the analysis, translating complex statistical computations into clear, understandable probabilities. It serves as a critical tool for visualizing the potential outcomes of the election, based on the demographic factors considered in the study.
+
+To ensure transparency and reproducibility, the methodologies employed in this analysis are thoroughly described in the previous sections. The R code utilized for generating these results is integral to the study and can be referred to in the Methods section.
+
+
+## Conclusions
+
+In this analysis, the focus was to predict the preferences of Canadian voters among major political parties, particularly examining demographic influences such as gender, education, region, and age group. Utilizing data from the 2021 Canadian Election Study (CES) and the General Social Survey (GSS), a sophisticated logistic regression model with post-stratification was developed. The initial hypothesis suggested a potential victory for the Liberal Party, influenced by trends observed in the CES data.
+
+The empirical findings painted a picture of a tight electoral race. The probabilities indicated a marginal lead for the Conservative Party over the Liberals, with the NDP following as a significant, yet less preferred option. These results, while suggesting a lean towards the Conservative Party, highlighted the intricacy and variability of voter preferences in Canada.
+
+The study's outcomes underscore the critical role of demographic factors in shaping political landscapes. The analysis reaffirmed that voter preferences in Canada are not monolithic but are influenced by a mosaic of demographic factors. This nuanced understanding is pivotal for political analysts and strategists in predicting electoral outcomes.
+
+One of the study's primary limitations was its reliance on data from a specific timeframe, which may not fully capture evolving political sentiments or unforeseen shifts in voter behavior. Additionally, the model's assumptions regarding demographic uniformity could potentially simplify the complex reality of electoral preferences.
+
+For future research, it is recommended to incorporate a broader range of data sources, potentially including longitudinal studies to better understand changing political trends. An exploration of the interplay between various demographic factors could yield a more detailed picture of the electorate. Additionally, integrating novel data sources like social media analytics could offer real-time insights, enhancing predictive accuracy.
+ 
+In conclusion, this study makes a significant contribution to understanding Canadian voter behavior, emphasizing the importance of demographic factors in electoral predictions. While the findings offer a glimpse into the current political dynamics, they also highlight the ever-changing nature of voter preferences, beckoning for ongoing research and exploration in this field. The study not only sheds light on the current electoral scenario but also sets the stage for more nuanced and comprehensive future analyses.
+
+
+\newpage
+
+## Bibliography
+
+[1] Grolemund, G. (2014, July 16) *Introduction to R Markdown*. RStudio. [https://rmarkdown.rstudio.com/articles_intro.html](https://rmarkdown.rstudio.com/articles_intro.html). (Last Accessed: April 4, 1991) 
+
+[2]  RStudio Team. (2020). *RStudio: Integrated Development for R*. RStudio, PBC, Boston, MA URL [http://www.rstudio.com/](http://www.rstudio.com/).
+
+[3]  Allaire, J.J., et. el. *References: Introduction to R Markdown*. RStudio. [https://rmarkdown.rstudio.com/docs/](https://rmarkdown.rstudio.com/docs/). (Last Accessed: April 4, 1991) 
+
+[4] OpenAI. (2023). *ChatGPT (September 13 version) [Large language model]*. [https://chat.openai.com/chat](https://chat.openai.com/chat) (Last Accessed: September 13, 2023)
+
+[5] Snyder, Roy Edward III, "The impact of age, education, political knowledge and political context on voter turnout" (2011). UNLV Theses, Dissertations, Professional Papers, and Capstones. 1400. http://dx.doi.org/10.34917/3310658 
+
+[6] Scarrow, H. A. (1960). Federal-Provincial Voting Patterns in Canada. The Canadian Journal of Economics and Political Science / Revue Canadienne d’Economique et de Science Politique, 26(2), 289–298. https://doi.org/10.2307/138656
+
+[7] Canada, E. (2023) Voter registration, – Elections Canada. Available at: https://www.elections.ca/content.aspx?section=vot&dir=reg&document=index&lang=e (Accessed: 18 November 2023). 
+
+[8] Canada’s five regions (2016) Live & Learn: a project of English Online Inc. Available at: https://livelearn.ca/article/about-canada/canadas-five-regions/ (Accessed: 18 November 2023). 
+
+
+## Appendix
+
+## Generative AI Statement
+
+We used the following generative artificial intelligence (AI) tool: ChatGPT Version available on November 22, 2023 [4].
+
+- We used the tool to rephrase paragraph
+- We used the tool to check grammar and spelling
+- We used it to generate mathematical codes to write in rmarkdown
+- We used it to explain the intuition behind some outputs. 
+- For sections like the introduction and methodology, ChatGPT was prompted to paraphrase complex academic concepts into simpler, more accessible language. This was particularly useful in ensuring the report was understandable to a broader audience, including those not deeply versed in statistical methods or Canadian electoral politics.
+- When faced with coding errors or output discrepancies, prompts were used to seek guidance from ChatGPT. The AI offered troubleshooting advice and alternative code suggestions to rectify issues encountered during data analysis.
+- We asked ChatGPT to clarify and elaborate on specific R code snippets, such as pivot_longer(cols = starts_with("vote_"), names_to = "party", values_to = "vote"). The model provided detailed explanations, making the code more comprehensible and elucidating its purpose in the context of data manipulation for statistical analysis.
+- We ask ChatGPT to helped us understand the assumption needed for this assignment. 
+
+
