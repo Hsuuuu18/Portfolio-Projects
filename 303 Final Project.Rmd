@@ -1,0 +1,556 @@
+---
+title: "What is the influence of lifestyle behaviors on the risk of experiencing a heart attack?"
+author: "Hsu Han Yong"
+date: "2024-03-31"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(knitr) ## To create nice tables
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(gridExtra)
+library(knitr)
+library(readr)
+#install.packages("glmnet")
+```
+
+```{r, include=FALSE}
+df <- read_csv("heart_2020_cleaned.csv")
+```
+
+```{r Univariate Analysis for Categorical Variables, include=FALSE}
+## Univariate Analysis for Categorical Variables #coord_flip()
+# For the categorical exposure/risk factors and confounders
+
+ggplot(df, aes(x=Smoking)) + geom_bar() + labs(title="Bar Plot of Smoking") + geom_text(aes(label=after_stat(count)), stat='count', vjust=-0.5)
+
+ggplot(df, aes(x=AlcoholDrinking)) + geom_bar() + labs(title="Bar Plot of AlcoholDrinking") + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + geom_text(aes(label=after_stat(count)), stat='count', vjust=-0.03)
+
+ggplot(df, aes(x=Stroke)) + geom_bar() + labs(title="Bar Plot of Stroke") + geom_text(aes(label=after_stat(count)), stat='count', vjust=-0.5)
+
+ggplot(df, aes(x=Sex)) + geom_bar() + labs(title="Bar Plot of Sex") + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + geom_text(aes(label=after_stat(count)), stat='count', vjust=-0.03)
+
+ggplot(df, aes(x=AgeCategory)) + geom_bar() + labs(title="Bar Plot of AgeCategory") + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + geom_text(aes(label=after_stat(count)), stat='count', vjust=-0.03)
+
+ggplot(df, aes(x=Diabetic)) + geom_bar() + labs(title="Bar Plot of Diabetic") + geom_text(aes(label=after_stat(count)), stat='count', vjust=-0.5)
+
+ggplot(df, aes(x=PhysicalActivity)) + geom_bar() + labs(title="Bar Plot of PhysicalActivity") + geom_text(aes(label=after_stat(count)), stat='count', vjust=-0.5)
+
+ggplot(df, aes(x=Asthma)) + geom_bar() + labs(title="Bar Plot of Asthma") + geom_text(aes(label=after_stat(count)), stat='count', vjust=-0.5)
+
+ggplot(df, aes(x=KidneyDisease)) + geom_bar() + labs(title="Bar Plot of KidneyDisease") + geom_text(aes(label=after_stat(count)), stat='count', vjust=-0.5)
+
+ggplot(df, aes(x=SkinCancer)) + geom_bar() + labs(title="Bar Plot of SkinCancer") + geom_text(aes(label=after_stat(count)), stat='count', vjust=-0.5)
+
+```
+
+```{r Univariate Analysis for continuos variables, include=FALSE}
+## For continuos variables
+
+ggplot(df, aes(x = HeartDisease, y = SleepTime)) +
+   geom_boxplot() +
+   labs(y = "Sleep Hours", title = "Boxplot of Occurance of Heart Attack by SleepTime")
+
+ggplot(df, aes(x = HeartDisease, y = BMI)) +
+   geom_boxplot() +
+   labs(y = "BMI", title = "Boxplot of Occurance of Heart Attack by BMI")
+ 
+ggplot(df, aes(x = HeartDisease, y = PhysicalHealth)) +
+   geom_boxplot() +
+   labs(y = "PhysicalHealth", title = "Boxplot of Occurance of Heart Attack by PhysicalHealth")
+   
+ggplot(df, aes(x = HeartDisease, y = MentalHealth)) +
+   geom_boxplot() +
+   labs(y = "MentalHealth", title = "Boxplot of Occurance of Heart Attack by MentallHealth")
+```
+
+```{r Bivariate analysis between outcome and exposures, include=FALSE}
+## Bivariate analysis between outcome and exposures
+# visualization using bar chart for categorical variables
+
+# For PhysicalActivity
+ggplot(df, aes(x = PhysicalActivity, fill = HeartDisease)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Count of Physical Activities by Occurance of Heart Attack") +
+  geom_text(stat = 'count', aes(label = ..count.., y = ..count..),
+            position = position_dodge(width = 0.9), vjust = -0.25)
+
+# For Stroke
+ggplot(df, aes(x = Stroke, fill = HeartDisease)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Count of Stroke by Occurance of Heart Attack") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_text(stat = 'count', aes(label = ..count.., y = ..count..),
+            position = position_dodge(width = 0.9), vjust = -0.10)
+
+# For Smoking
+ggplot(df, aes(x = Smoking, fill = HeartDisease)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Count of Smoking by Occurance of Heart Attack") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_text(stat = 'count', aes(label = ..count.., y = ..count..),
+            position = position_dodge(width = 0.9), vjust = -0.10) +
+  scale_y_continuous(labels = scales::comma)
+
+# For Age Category
+ggplot(df, aes(x = AgeCategory, fill = HeartDisease)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Count of AgeCategory by Occurrence of Heart Attack") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_text(stat = 'count', aes(label = ..count.., y = ..count..),
+            position = position_dodge(width = 0.9), vjust = -0.10) +
+  scale_y_continuous(labels = scales::comma)
+
+# For Sex
+ggplot(df, aes(x = Sex, fill = HeartDisease)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Count of Sex by Occurrence of Heart Attack") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_text(stat = 'count', aes(label = ..count.., y = ..count..),
+            position = position_dodge(width = 0.9), vjust = -0.10) +
+  scale_y_continuous(labels = scales::comma)
+
+# For AlcoholDrinking
+ggplot(df, aes(x = AlcoholDrinking, fill = HeartDisease)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Count of AlcoholDrinking by Occurrence of Heart Attack") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_text(stat = 'count', aes(label = ..count.., y = ..count..),
+            position = position_dodge(width = 0.9), vjust = -0.10) +
+  scale_y_continuous(labels = scales::comma)
+```
+
+# Introduction
+
+Heart disease is a leading cause of mortality often triggered by inadequate blood supply to the heart and is a significant health burden $^1$, accounting for substantial deaths and healthcare costs annually in the U.S. 
+
+This study aims to investigate the impact of lifestyle behaviors, such as levels of physical activity, sleep hours, smoking, and alcohol status on heart disease. By understanding these behaviors' independent effects, we can devise targeted strategies to lower the risk of heart disease in diverse populations.
+
+Past research indicates that non-smoking, moderate alcohol use, regular exercise, and a Mediterranean diet substantially reduce cardiovascular disease and cancer mortality, possibly increasing lifespan.$^2$ A 50-year study in rural Italian men confirms regular exercise and dietary habits choices in decreasing heart disease mortality. $^3$ Further, an Indian study reveals that sleep, diet, activity, smoking, work stress, and social ties all intricately contribute to coronary heart disease risk. $^4$
+
+# Methods 
+
+This dataset originated from 2020 CDC's Behavioral Risk Factor Surveillance System (BRFSS) dataset, containing survey health data from over 300,000 telephone interviews 
+
+Our analysis began by incorporating all 17 predictors to understand their effects on heart disease risk. We utilized AIC and BIC methodologies for variable selection via forward, backward, and stepwise selection to achieve optimal model fit. Additionally, we implemented LASSO regression by imposing penalties that shrink the coefficients of less critical variables toward zero. Models were compared using their AIC/BIC scores, preferring models with lower scores. Variables retained through LASSO with non-zero coefficients suggested significance, with categorical variables included only if more than one category showed non-zero coefficients. The model's descriptive power was evaluated using ROC curve analysis, focusing on the AUC as a measure of predictive accuracy where an AUC close to 1 indicated better model discrimination.
+
+Our goal was a descriptive model that captured the essence of the relationship between lifestyle behaviors and heart attack risk, ensuring clarity and interpretability. To ensure our model aligned with our research question, key exposure variables omitted initially were reintegrated to align with the research questions.  
+
+While we assume that observations are independent, we investigated the presence of influential data points using Cook’s distance and Dfbetas, which assess individual data points' impact on the regression coefficients by displaying box plots of the Dfbetas for each predictor category. By assessing the model's performance with and without these influential observations, we determined their impact and considered their exclusion to enhance model integrity.To mitigate overfitting, data validation was performed using cross-validation, cycling segments of data as test sets, improving model reliability. The model's predictive accuracy was quantified using mean absolute error. Visual accuracy checks were performed by plotting predicted against observed values and examining the calibration plots.
+
+```{r stepwise, include=FALSE}
+# full model:
+df$HeartDisease <- as.factor(df$HeartDisease) ## if this variable is a character variable
+logit.mod1 <- glm(HeartDisease ~ ., family = binomial(link = logit), data = df)
+
+### STEPWSISE VARIABLE SELECTION
+## Stepwise elimination based on AIC ##
+sel.var.aic <- step(logit.mod1, trace = 0, k = 2, direction = "both") 
+select_var_aic<-attr(terms(sel.var.aic), "term.labels")   
+select_var_aic
+
+## Stepwise elimination based on BIC ##
+sel.var.bic <- step(logit.mod1, trace = 0, k = log(nrow(df)), direction = "both") 
+select_var_bic<-attr(terms(sel.var.bic), "term.labels")   
+select_var_bic
+```
+
+```{r Backward, include=FALSE}
+### BACKWARD VARIABLE SELECTION
+## Backward elimination based on AIC ##
+sel.var.aic.back <- step(logit.mod1, trace = 0, k = 2, direction = "backward") 
+select_var_aic_back <- attr(terms(sel.var.aic.back), "term.labels")   
+select_var_aic_back
+
+## Backward elimination based on BIC ##
+sel.var.bic.back <- step(logit.mod1, trace = 0, k = log(nrow(df)), direction = "backward") 
+select_var_bic_back<-attr(terms(sel.var.bic.back), "term.labels")   
+select_var_bic_back
+```
+
+```{r Forward, include=FALSE}
+### FORWARD VARIABLE SELECTION
+# Define the minimal model (intercept only)
+df$HeartDisease <- as.factor(df$HeartDisease) ## if this variable is a character variable
+minimal_model <- glm(HeartDisease ~ 1, family = binomial(link = logit), data = df)
+
+## Forward elimination based on AIC ##
+sel.var.aic.forward <- step(minimal_model, scope=list(lower=minimal_model, upper=logit.mod1), direction = "forward", trace = 0, k = 2)
+select_var_aic_forward <- attr(terms(sel.var.aic.forward), "term.labels")
+select_var_aic_forward
+
+## Forward elimination based on BIC ##
+sel.var.bic.forward <- step(minimal_model, scope=list(lower=minimal_model, upper=logit.mod1), direction = "forward", trace = 0, k = log(nrow(df)))
+select_var_bic_forward <- attr(terms(sel.var.bic.forward), "term.labels")
+select_var_bic_forward
+```
+
+```{r summary of AIC BIC score , include=FALSE}
+# Extract AIC/BIC scores from each model
+aic_stepwise <- AIC(sel.var.aic)
+bic_stepwise <- BIC(sel.var.aic)
+
+aic_backward <- AIC(sel.var.aic.back)
+bic_backward <- BIC(sel.var.aic.back)
+
+aic_forward <- AIC(sel.var.aic.forward)
+bic_forward <- BIC(sel.var.aic.forward)
+
+# Combine scores into a data frame for easy comparison
+model_comparison <- data.frame(
+  Method = c("Stepwise","Backward", "Forward"),
+  AIC = c(aic_stepwise, aic_backward, aic_forward),  
+  BIC = c(bic_stepwise, bic_backward, bic_forward)   
+)
+
+model_comparison
+```
+
+```{r Lasso , include=FALSE}
+#Lasso selection
+
+library(glmnet)
+set.seed(1006943337)
+
+# Prepare the predictor matrix and response variable. Exclude the outcome variable from the predictors.
+X <- model.matrix(HeartDisease~., data = df)[,-1]
+# The '-1' excludes the intercept to include in LASSO
+Y <- as.factor(df$HeartDisease)
+
+# Fit the LASSO model
+fit <- glmnet(X, Y, family = "binomial", alpha = 1) # alpha = 1 for LASSO
+# Determine the optimal lambda using cross-validation
+cvfit = cv.glmnet(X, Y, family = "binomial", type.measure = "class", alpha = 1)
+
+# Plot the cross-validation curve to visualize the lambda selection
+plot(cvfit)
+
+# Extract the coefficients at the optimal lambda
+lambda_min <- cvfit$lambda.min
+lambda_1se <- cvfit$lambda.1se
+
+coefficients_min <- coef(cvfit, s = lambda_min)
+coefficients_1se <- coef(cvfit, s = lambda_1se)
+
+# Print coefficients for inspection
+print(coefficients_min)
+print(coefficients_1se)
+```
+
+
+```{r models, include=FALSE}
+## models##
+#model1 based on AIC/BIC (exclude PhysicalActivity) but added back for model to align with research question
+df$HeartDisease <- as.factor(df$HeartDisease) 
+model1 <- glm(HeartDisease ~ BMI + Smoking + AlcoholDrinking + Stroke + PhysicalHealth + MentalHealth + DiffWalking + Sex + AgeCategory + Race + Diabetic + GenHealth + SleepTime + Asthma + KidneyDisease + SkinCancer + PhysicalActivity, family = binomial(link = logit) ,data = df)
+
+#model2 based on lambda.min (exclude MentalHealth, Race, Diabetic, PhysicalActivity, SleepTime) but (PhysicalActivity and SleepTime) is added back for model to align with research question
+df$HeartDisease <- as.factor(df$HeartDisease) 
+model2 <- glm(HeartDisease ~ BMI + Smoking + AlcoholDrinking + Stroke + PhysicalHealth + DiffWalking + Sex + AgeCategory + GenHealth + Asthma + KidneyDisease + SkinCancer +  PhysicalActivity + SleepTime, family = binomial(link = logit) ,data = df)
+  
+#model3 based on lambda.1se (exclude BMI, AlcoholDrinking, MentalHealth, Race, Diabetic, PhysicalActivity, Asthma, SleepTime) but (AlcoholDrinking, PhysicalActivity and SleepTime) is added back for model to align with research question
+df$HeartDisease <- as.factor(df$HeartDisease) 
+model3 <- glm(HeartDisease ~ AlcoholDrinking + PhysicalActivity + SleepTime + Smoking + Stroke + PhysicalHealth + DiffWalking + Sex + AgeCategory + GenHealth + KidneyDisease + SkinCancer , family = binomial(link = logit) ,data = df)
+```
+
+\newpage
+
+# Results
+```{r boxplot of sleeptime, echo=FALSE}
+ggplot(df, aes(x = HeartDisease, y = SleepTime)) +
+  geom_boxplot() +
+  labs(y = "Hours of Sleep", title = "Boxplot of Sleeping Hours by Heart Disease")
+```
+The provided boxplot illustrates a slight difference in sleep duration between individuals with and without heart disease, with the latter averaging slightly less sleep (approximately 7.09 hours) than the former (approximately 7.14 hours).  Despite the proximity of these means within the range of standard deviation, it raises questions about the nuanced role of sleep in heart health. 
+
+```{r contigency tables for categorical variables, echo=FALSE}
+library(knitr)
+library(dplyr)
+
+
+# Define the categorical variables and outcome variable
+cat_vars <- c("AlcoholDrinking", "PhysicalActivity", "Smoking")
+outcome_var <- "HeartDisease"
+
+# Function to create and return a kable object for a given variable
+create_contingency_table <- function(variable, data, outcome) {
+  tbl <- table(data[[variable]], data[[outcome]])
+  df_tbl <- as.data.frame.matrix(tbl)
+  colnames(df_tbl) <- c("No", "Yes")
+  return(df_tbl)
+}
+
+# Create a list to store the data frames
+tables <- lapply(cat_vars, function(var) create_contingency_table(var, df, outcome_var))
+
+# Combine the data frames into one wide data frame
+wide_df <- do.call(cbind, tables)
+
+# Rename the columns to include the variable names and the Yes/No labels
+col_names <- c(rbind(paste(rep(cat_vars, each = 2), c("(No)", "(Yes)"), sep = " ")))
+colnames(wide_df) <- col_names
+
+# Create a kable from the wide data frame
+kable(wide_df, booktabs = TRUE, caption = "Contingency Tables for exposures of interest with HeartDisease") 
+```
+
+The contingency tables above reveal intriguing patterns between lifestyle behaviors and heart disease, diverging from common expectations based on literature. It shows a notably larger group of non-drinkers (271,786) compared to drinkers (26,232), which could skew the perceived risk reduction of heart disease among drinkers (1,141). Physical activity, while beneficial, isn't a standalone preventive measure, as shown by the larger count of inactive individuals (230,468) without heart disease than active ones (17,489). Smoking patterns reveal that a majority of non-smokers (176,551) are heart disease-free, aligning with the known risks of smoking.
+
+
+```{r Cook’s distance, eval=TRUE, echo=F, warning=FALSE, message=FALSE}
+par(mfrow = c(1, 3))
+
+## Cooks Distance
+options(scipen = 999)
+
+# model 1
+cd1 <- cooks.distance(model1)
+plot(cd1, type="h", xlab="Observation Index", ylab="Cooks Distance for model 1")
+abline(h=4/(nrow(model.frame(model1))), col="red")
+
+# model 2
+cd2 <- cooks.distance(model2)
+plot(cd2, type="h", xlab="Observation Index", ylab="Cooks Distance for model 2")
+abline(h=4/(nrow(model.frame(model2))), col="red")
+
+# model 3
+cd3 <- cooks.distance(model3)
+plot(cd3, type="h", xlab="Observation Index", ylab="Cooks Distance for model 3")
+abline(h=4/(nrow(model.frame(model3))), col="red")
+```
+
+Our model diagnostic began with Cook’s distance plots showing decreasing influence of data points from model 1 through 3, with no instances exceeding the 4/n outlier threshold.  This suggests no immediate outliers that would distort the model's predictions. High-leverage points that remain in model 3 suggest noteworthy cases rather than errors, affirming model consistency and the nuanced assessment of potential outliers.
+
+```{r Dfbetas, eval=TRUE, include = F}
+## Dfbetas ##
+model3 <- glm(HeartDisease ~ AlcoholDrinking + PhysicalActivity + SleepTime + Smoking + Stroke + PhysicalHealth + DiffWalking + Sex + AgeCategory + GenHealth + KidneyDisease + SkinCancer , family = binomial(link = logit) ,data = df)
+
+# Calculate dfbetas for the model
+dfbetas_values <- dfbetas(model3)
+cutoff = -2/sqrt(nrow(dfbetas_values))
+                 
+# Plotting boxplots for each predictor's dfbetas
+par(mfrow = c(1, 2)) # Adjust the layout according to the number of predictors
+for(i in 1:ncol(dfbetas_values)) {
+  boxplot(dfbetas_values[, i], main = names(model3$coefficients)[i], ylab = "dfbetas")
+  abline(h = cutoff, col = "red", lty = 2)
+  abline(h = -cutoff, col = "red", lty = 2)
+}
+```
+
+Further diagnostics involved the analysis of DFBetas, which measure the influence of individual data points on each predictor category. In my analysis, numerous observations exhibit large standardized DFBetas, suggesting that their removal would significantly alter the $\beta$ coefficient. Nonetheless, these large values do not necessarily mean that the observations are errors that should be automatically removed from the analysis. *(see Appendix, Plot 1 and Plot 2)*
+
+```{r Dfbetas for sleeptime, eval=TRUE, include=FALSE}
+df.final <- dfbetas(model3)
+
+par(family = 'serif')
+plot(df$SleepTime, dfbetas_values[,3], xlab='Sleeping Hours', 
+     ylab='dfbeta')
+lines(lowess(df$SleepTime, df.final[,3]), lwd=2, col='blue')
+abline(h=0, lty='dotted')
+abline(h=-2/sqrt(nrow(df.final)), lty='dotted')
+abline(h=2/sqrt(nrow(df.final)), lty='dotted')
+```
+
+```{r ROC curve, eval=TRUE, include=FALSE}
+library(pROC)
+library(rms)
+
+#model1  
+lrm.model1 <- lrm(HeartDisease ~ BMI + Smoking + AlcoholDrinking + Stroke + PhysicalHealth + MentalHealth + DiffWalking + Sex + AgeCategory + Race + Diabetic + GenHealth + SleepTime + Asthma + KidneyDisease + SkinCancer + PhysicalActivity , data = df, x=TRUE, y=TRUE)
+p1 <- predict(lrm.model1, type = "fitted")
+
+roc_logit1 <- roc(df$HeartDisease ~ p1)
+## The True Positive Rate ##
+TPR1 <- roc_logit1$sensitivities
+## The False Positive Rate ##
+FPR1 <- 1 - roc_logit1$specificities
+
+plot(FPR1, TPR1, xlim = c(0,1), ylim = c(0,1), type = 'l', lty = 1, lwd = 2,col = 'red')
+abline(a = 0, b = 1, lty = 2, col = 'blue')
+text(0.7,0.4,label = paste("AUC = ", round(auc(roc_logit1),3)))
+
+auc(roc_logit1)
+
+
+#model2 
+lrm.model2 <- lrm(HeartDisease ~ BMI + Smoking + AlcoholDrinking + Stroke + PhysicalHealth + DiffWalking + Sex + AgeCategory + GenHealth + Asthma + KidneyDisease + SkinCancer +  PhysicalActivity + SleepTime , data = df, x=TRUE, y=TRUE)
+p2 <- predict(lrm.model2, type = "fitted")
+
+roc_logit2 <- roc(df$HeartDisease ~ p2)
+## The True Positive Rate ##
+TPR2 <- roc_logit2$sensitivities
+## The False Positive Rate ##
+FPR2 <- 1 - roc_logit2$specificities
+
+plot(FPR2, TPR2, xlim = c(0,1), ylim = c(0,1), type = 'l', lty = 1, lwd = 2,col = 'red')
+abline(a = 0, b = 1, lty = 2, col = 'blue')
+text(0.7,0.4,label = paste("AUC = ", round(auc(roc_logit2),3)))
+auc(roc_logit2)
+
+
+#model3  
+lrm.model3 <- lrm(HeartDisease ~ AlcoholDrinking + PhysicalActivity + SleepTime + Smoking + Stroke + PhysicalHealth + DiffWalking + Sex + AgeCategory + GenHealth + KidneyDisease + SkinCancer, data = df, x=TRUE, y=TRUE)
+p3 <- predict(lrm.model3, type = "fitted")
+
+roc_logit3 <- roc(df$HeartDisease ~ p3)
+## The True Positive Rate ##
+TPR3 <- roc_logit3$sensitivities
+## The False Positive Rate ##
+FPR3 <- 1 - roc_logit3$specificities
+
+plot(FPR3, TPR3, xlim = c(0,1), ylim = c(0,1), type = 'l', lty = 1, lwd = 2,col = 'red')
+abline(a = 0, b = 1, lty = 2, col = 'blue')
+text(0.7,0.4,label = paste("AUC = ", round(auc(roc_logit3),3)))
+auc(roc_logit3)
+```
+
+Calibration plots were employed for data validation, where slight deviations of the "Bias-corrected" line from the "Ideal" line at higher probabilities suggested an optimistic model bias. The mean absolute error of 0.006 signaled that while the model's predictive accuracy is robust, room for improvement exists, particularly in refining risk overestimation. *(see Appendix, Plot 3)*
+
+```{r calibration plot, eval=TRUE, include = F}
+library(rms)
+df$HeartDisease <- as.factor(df$HeartDisease) 
+
+## Fit the model1 based on AIC/BIC (exclude PhysicalActivity) but added back for model to align with research question with lrm from rms package ##
+lrm.model1 <- lrm(HeartDisease ~ BMI + Smoking + AlcoholDrinking + Stroke + PhysicalHealth + MentalHealth + DiffWalking + Sex + AgeCategory + Race + Diabetic + GenHealth + SleepTime + Asthma + KidneyDisease + SkinCancer + PhysicalActivity , data = df, x=TRUE, y=TRUE, model=T)
+cross.calib1 <- calibrate(lrm.model1, method="crossvalidation", B=10) # model calibration
+plot(cross.calib1, las=1, xlab = "Predicted Probability")
+
+## Fit the model2 based on lambda.min (exclude MentalHealth, Race, Diabetic, PhysicalActivity, SleepTime) but (PhysicalActivity and SleepTime) is added back for model to align with research question with lrm from rms package ##
+lrm.model2 <- lrm(HeartDisease ~ BMI + Smoking + AlcoholDrinking + Stroke + PhysicalHealth + DiffWalking + Sex + AgeCategory + GenHealth + Asthma + KidneyDisease + SkinCancer +  PhysicalActivity + SleepTime , data = df, x=TRUE, y=TRUE, model=T)
+cross.calib2 <- calibrate(lrm.model2, method="crossvalidation", B=10) # model calibration
+plot(cross.calib2, las=1, xlab = "Predicted Probability")
+
+## Fit the model3 based on lambda.1se (exclude BMI, AlcoholDrinking, MentalHealth, Race, Diabetic, PhysicalActivity, Asthma, SleepTime) but (AlcoholDrinking, PhysicalActivity and SleepTime) is added back for model to align with research question with lrm from rms package ##
+lrm.model3 <- lrm(HeartDisease ~ AlcoholDrinking + PhysicalActivity + SleepTime + Smoking + Stroke + PhysicalHealth + DiffWalking + Sex + AgeCategory + GenHealth + KidneyDisease + SkinCancer, data = df, x=TRUE, y=TRUE, model=T)
+cross.calib3 <- calibrate(lrm.model3, method="crossvalidation", B=10) # model calibration
+plot(cross.calib3, las=1, xlab = "Predicted Probability")
+```
+
+\newpage
+## Model selection
+```{r model selection summary , echo=FALSE, warning=FALSE, message=FALSE}
+# Define the data for the table
+model_selection_data <- data.frame(
+  Model = 1:3,
+  Methods = c("Forward, Backward, Stepwise", "LASSO with lambda.min", "LASSO with lambda.1se"),
+  AIC_score = c(145225.3, 146151, 146563),
+  Number_of_predictors_selected = c(16, 12, 9),
+  Number_of_predictors_after_adding_back_primary_exposure_variables = c(17, 14, 12),
+  AUC_score = c(0.841, 0.838, 0.837), 
+  Mean_abs_error = c(0.006, 0.006, 0.006)
+)
+
+# Use kable to create a table
+kable(model_selection_data, booktabs = TRUE, 
+      col.names = c("Model", "Methods", "AIC Score", "Predictors Selected", 
+                    "Adjusted Predictors", "AUC Score", "Mean absolute error"),
+      caption = "Model Selection Summary")
+```
+
+In the selection of the final model, we initially included all 17 predictors, then applied traditional variable selection methods such as AIC, BIC, forward, backward, and stepwise selection, narrowing down to 16 predictors, reflected by an AIC/BIC score of about 145225.3 for all three methods. The LASSO method with the lambda.min parameter further reduced this list to 12 predictors. Choosing the lambda.1se parameter for its lower predictive variance refined the selection to 9 predictors, leading to our model 3. 
+
+To align the models with our research objectives, key lifestyle variables potentially omitted in the automated process, specifically 'PhysicalActivity', 'Smoking', 'AlcoholDrinking', and 'SleepTime' were deliberately re-included. Consequently, the adjusted models featured 17, 14, and 12 predictors for models 1, 2, and 3, respectively. The AUC for all three models are above 0.80 which shows a high level of discrimination. Interestingly, the prediction accuracy of the model which is shown by the mean squared error is 0.006 for all three models. 
+
+Despite model 3 showing a slightly lower AUC, and a higher AIC score, its reduced complexity made it the preferred choice. This decision was anchored in the desire for a descriptive and interpretative model.
+
+\newpage
+```{r Regression Coefficients and Odds Ratios, eval=TRUE, echo=FALSE}
+library(broom)
+library(knitr)
+
+finalmodel <- glm(HeartDisease ~ AlcoholDrinking + PhysicalActivity + SleepTime + Smoking + Stroke + PhysicalHealth + DiffWalking + Sex + AgeCategory + GenHealth + KidneyDisease + SkinCancer , family = binomial(link = logit) ,data = df)
+final_summary <- tidy(finalmodel)
+
+# Create the second summary table for odds ratios and confidence intervals
+OR_CI <- round(exp(cbind(OR = coef(finalmodel), suppressMessages(confint(finalmodel)))), 4)
+OR_CI_df <- as.data.frame(OR_CI)
+names(OR_CI_df) <- c("OR", "CI_lower", "CI_upper")
+OR_CI_df$term <- rownames(OR_CI_df)
+
+# Merge both data frames by the term/variable names without sorting
+merged_summary <- merge(final_summary, OR_CI_df, by.x = "term", by.y = "term", all.x = TRUE, sort = FALSE)
+
+# Display the merged summary table with kable(), ensuring the order of variables matches the model
+kable(merged_summary, caption = "Regression Coefficients and Odds Ratios")
+``` 
+
+In our research, 'PhysicalActivity' did not demonstrate a significant relationship with heart disease at the 5% significance level, unlike 'Smoking', 'AlcoholDrinking', and 'SleepTime', as indicated by the p-value. 
+
+Individuals who consume alcohol have odds of developing heart disease that are 0.749 times those who do not drink, suggesting a 25% lower probability in drinkers when all other factors are held constant. Additionally, each extra hour of sleep is associated with a 2.6% decrease in the probability of developing heart disease, reflecting an odds ratio of 0.974. Smokers face 1.431 times higher odds of heart disease compared to non-smokers, indicating a 43% higher probability for smokers to have heart disease. Age category analysis indicates growing odds of heart disease with age, starting from the 18-24 baseline. Males are twice as likely to encounter heart disease as females, emphasizing gender disparity in risk.
+
+\newpage
+
+# Discussion
+
+The present study uncovers the association of lifestyle behaviors such as alcohol consumption, sleep duration, smoking habits, and physical activity on heart disease, contradicting some previous studies. Specifically, it suggests that a 25% decrease in heart disease probability is associated with alcohol consumption. This finding may reflect a skewed dataset with a greater number of non-drinkers (1:10). Moreover, each additional hour of sleep shows a 2.6% decrease in the probability of heart disease, perhaps indicative of an overall healthier or less stressful lifestyle not fully accounted for in our model. Consistently, the model aligns with previous studies on smoking, indicating a 43% increase in the probability of heart disease risk among smokers vs non-smokers. Given these findings, public health initiatives that encourage smoking cessation could be critical in reducing heart disease incidence. Our findings directly address our inquiry into lifestyle impacts on heart disease and advocate for comprehensive lifestyle modifications in preventative health measures.
+
+## Limitations
+This study faces several limitations:  Large dfbetas highlight influential observations that could skew predictions, removing them risks bias or data loss, as they may represent real population variability. The calibration plot deviation suggests potential risk overestimation, a common challenge in logistic regression that's difficult to correct without other trade-offs. The non-significant p-value of the 'PhysicalActivity' variable in our model prevents us from confidently asserting its impact on heart disease risk, reflecting a potential limitation in our dataset's ability to capture this variable's effect. 
+
+\newpage
+## Reference
+1. Benjamin EJ, Blaha MJ, Chiuve SE, et al. ; American Heart Association Statistics Committee and Stroke Statistics Subcommittee. Heart disease and stroke statistics—2017 update: a report from the American Heart Association. Circulation 2017;135:e146–603. CrossRef PubMed 
+
+2. Puddu, P., & Menotti, A. (2018). Lifestyle Factors and the Impact on Lifetime Incidence and Mortality of Coronary Heart Disease. Lifestyle in Heart Health and Disease, 47-61. https://doi.org/10.1016/B978-0-12-811279-3.00005-7 
+
+3. Menotti, A., & Puddu, P.E. (2024). Canonical Correlation for the Analysis of Lifestyle Behaviors versus Cardiovascular Risk Factors and the Prediction of Cardiovascular Mortality: A Population Study. Hearts. https://www.semanticscholar.org/paper/Canonical-Correlation-for-the-Analysis-of-Lifestyle-Menotti-Puddu/dc5d8d567e50a93e1b94d29773e25cc35ce031c7 
+
+4. Bhosale, S.J. (2019). The Role of Lifestyle in Development of Coronary Heart Disease. Inflammatory Heart Diseases.
+
+\newpage
+# Appendix
+
+Plot 1 
+```{r Dfbetas plot 1, eval=TRUE, echo=FALSE}
+## Dfbetas ##
+model3 <- glm(HeartDisease ~ AlcoholDrinking + PhysicalActivity + SleepTime + Smoking + Stroke + PhysicalHealth + DiffWalking + Sex + AgeCategory + GenHealth + KidneyDisease + SkinCancer , family = binomial(link = logit) ,data = df)
+
+# Calculate dfbetas for the model
+dfbetas_values <- dfbetas(model3)
+cutoff = -2/sqrt(nrow(dfbetas_values))
+                 
+# Plotting boxplots for each predictor's dfbetas
+par(mfrow = c(3, 3)) 
+for(i in 1:ncol(dfbetas_values)) {
+  boxplot(dfbetas_values[, i], main = names(model3$coefficients)[i], ylab = "dfbetas")
+  abline(h = cutoff, col = "red", lty = 2)
+  abline(h = -cutoff, col = "red", lty = 2)
+}
+```
+
+\newpage
+
+Plot 2 
+```{r Dfbetas plot 2, eval=TRUE, echo = F}
+df.final <- dfbetas(model3)
+
+par(family = 'serif')
+plot(df$SleepTime, dfbetas_values[,3], xlab='Sleeping Hours', 
+     ylab='dfbeta')
+lines(lowess(df$SleepTime, df.final[,3]), lwd=2, col='blue')
+abline(h=0, lty='dotted')
+abline(h=-2/sqrt(nrow(df.final)), lty='dotted')
+abline(h=2/sqrt(nrow(df.final)), lty='dotted')
+```
+
+
+Plot 3 
+```{r calibration plot 3, eval=TRUE, echo=FALSE}
+lrm.model3 <- lrm(HeartDisease ~ AlcoholDrinking + PhysicalActivity + SleepTime + Smoking + Stroke + PhysicalHealth + DiffWalking + Sex + AgeCategory + GenHealth + KidneyDisease + SkinCancer, data = df, x=TRUE, y=TRUE)
+p3 <- predict(lrm.model3, type = "fitted")
+
+roc_logit3 <- roc(df$HeartDisease ~ p3)
+## The True Positive Rate ##
+TPR3 <- roc_logit3$sensitivities
+## The False Positive Rate ##
+FPR3 <- 1 - roc_logit3$specificities
+
+plot(FPR3, TPR3, xlim = c(0,1), ylim = c(0,1), type = 'l', lty = 1, lwd = 2,col = 'red')
+abline(a = 0, b = 1, lty = 2, col = 'blue')
+text(0.7,0.4,label = paste("AUC = ", round(auc(roc_logit3),3)))
+auc(roc_logit3)
+```
+
